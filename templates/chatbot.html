@@ -12,13 +12,21 @@
 
 <body>
   <!-- partial:index.partial.html -->
+
   <section class="msger" style="background-image: url('https://images.unsplash.com/photo-1471086569966-db3eebc25a59?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); background-size: cover;">
     <header class="msger-header">
       <div class="msger-header-title">
         <i class="fas fa-seedling"></i> ChatBot <i class="fas fa-seedling"></i>
       </div>
     </header>
-
+    <div class="msger-header-options">
+      <select id="llmTypeSelect" class="msger-llm-select">
+        <option value="search">LLM Type 1</option>
+        <option value="math">LLM Type 2</option>
+        <option value="retriever">LLM Type 3</option>
+        <option value="weather">LLM Type 4</option>
+      </select>
+    </div>
     <main class="msger-chat">
       <div class="msg left-msg">
         <div class="msg-img" style="background-image: url(https://image.flaticon.com/icons/svg/616/616408.svg)"></div>
@@ -30,7 +38,7 @@
           </div>
 
           <div class="msg-text">
-            Hi, welcome to ChatBot! Go ahead and ask me what I can plan for Your garden. 😄
+            Hi, welcome to Text bot choose the type of tools i should be using
           </div>
         </div>
       </div>
@@ -110,6 +118,19 @@
       const m = "0" + date.getMinutes();
 
       return `${h.slice(-2)}:${m.slice(-2)}`;
+    }
+    
+    function botResponse(rawText) {
+      // Get the selected LLM type from the dropdown
+      const llmType = document.getElementById("llmTypeSelect").value;
+
+      // Include the LLM type in the request to the server
+      $.get("/get", { msg: rawText, llmType: llmType }).done(function (data) {
+        console.log(rawText);
+        console.log(data);
+        const msgText = data.text; // Assuming the Flask route returns a JSON object with a 'text' field
+        appendMessage(BOT_NAME, BOT_IMG, "left", msgText);
+      });
     }
   </script>
 
