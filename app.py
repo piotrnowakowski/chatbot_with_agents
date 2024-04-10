@@ -15,20 +15,58 @@ from langchain_experimental.utilities import PythonREPL
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain.tools.retriever import create_retriever_tool
-from langchain_community.text_loaders import TextLoader
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_community.document_loaders import TextLoader
+from langchain.agents import load_tools
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.utilities import OpenWeatherMapAPIWrapper
+import requests
+from langchain.pydantic_v1 import BaseModel, Field
+from langchain.tools import BaseTool, StructuredTool, tool
 
 load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 API_KEY = os.getenv("API_KEY")
 OPENWEATHERMAP_API_KEY = os.getenv("WEATHER_API_KEY")
+AGENT_CHAIN = None
 
+@tool("timezone")
+def get_time(api_key, time_zone):
+    """
+    Fetches the current time for a given time zone using ipgeolocation.io API.
+
+    Parameters:
+    - api_key (str): Your API key for the ipgeolocation.io API.
+    - time_zone (str): The time zone name (e.g., "America/Los_Angeles").
+
+    Returns:
+    - dict: A dictionary containing the 24-hour and 12-hour time formats.
+    """
+    url = "https://api.ipgeolocation.io/timezone"
+    params = {
+        "apiKey": api_key,
+        "tz": time_zone
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raises an exception for 4XX/5XX errors
+        data = response.json()
+
+        # Extracting 24-hour and 12-hour times
+        time_info = {
+            "time_24": data.get("time_24"),
+            "time_12": data.get("time_12")
+        }
+
+        return time_info
+
+    except requests.RequestException as e:
+        print(f"Error fetching time data: {e}")
+        return {}
 
 def get_llm(llm_type):
-    # Całość zarządzania powinna zostać ostatecznie oddana orchestratorowi np w postaci open function calling agent 
+    # Całość zarządzania powinna zostać ostatecznie oddana orchestratorowi np w postaci open function calling agent  - https://github.com/langchain-ai/langgraph/blob/main/examples/multi_agent/agent_supervisor.ipynb
 
     global AGENT_CHAIN
     if llm_type == "search":
@@ -80,7 +118,11 @@ def get_llm(llm_type):
         #   geolocation = geolocation.json()
         #   return {'country': geolocation['country'], 'city': geolocation['city']}
         os.environ["OPENWEATHERMAP_API_KEY"] = OPENWEATHERMAP_API_KEY
-
+        tools = load_tools(["openweathermap-api"], llm)
+        tool = tools[0]
+    elif llm_type == "timezone":
+        tool = get_time
+        # the tool should be customized and the default location gathered for example based on the IP address as above in the weather tool
         
 
     tools = [
